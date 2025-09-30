@@ -1,0 +1,300 @@
+-- ===================== CARREGANDO RAYFIELD =====================
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- Criando janela
+local Window = Rayfield:CreateWindow({
+    Name = "Tigro's Hub",
+    LoadingTitle = "Tigro's Hub Carregando...",
+    LoadingSubtitle = "by Tigro",
+    Theme = "Ocean",
+    ToggleUIKeybind = "K"
+})
+
+-- ===================== ABA LOCAL PLAYER =====================
+local LocalPlayerTab = Window:CreateTab("Local Player")
+
+local plr = game.Players.LocalPlayer
+local flying = false
+local flySpeed = 50
+local instantProximity = false
+local bodyVelocity = nil
+local noclip = false
+local teleportTool = nil
+local infJump = false
+
+-- ---------- WALK SPEED ----------
+LocalPlayerTab:CreateSlider({
+    Name = "WalkSpeed",
+    Range = {1, 100},
+    Increment = 1,
+    CurrentValue = 16,
+    Suffix = "",
+    Flag = "walkspeed",
+    Callback = function(value)
+        if plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") then
+            plr.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = value
+        end
+    end
+})
+
+-- ---------- FLY ----------
+LocalPlayerTab:CreateToggle({
+    Name = "Fly",
+    CurrentValue = false,
+    Flag = "fly",
+    Callback = function(value)
+        flying = value
+        local character = plr.Character
+        local humanoidRoot = character and character:FindFirstChild("HumanoidRootPart")
+
+        if flying and character and humanoidRoot then
+            bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.MaxForce = Vector3.new(4000,4000,4000)
+            bodyVelocity.Velocity = Vector3.new(0,0,0)
+            bodyVelocity.Parent = humanoidRoot
+
+            spawn(function()
+                local UIS = game:GetService("UserInputService")
+                while flying and bodyVelocity and humanoidRoot do
+                    local direction = Vector3.new(0,0,0)
+                    if UIS:IsKeyDown(Enum.KeyCode.W) then direction = direction + workspace.CurrentCamera.CFrame.LookVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.S) then direction = direction - workspace.CurrentCamera.CFrame.LookVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.A) then direction = direction - workspace.CurrentCamera.CFrame.RightVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.D) then direction = direction + workspace.CurrentCamera.CFrame.RightVector end
+                    if UIS:IsKeyDown(Enum.KeyCode.Space) then direction = direction + Vector3.new(0,1,0) end
+                    if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then direction = direction - Vector3.new(0,1,0) end
+
+                    if direction.Magnitude > 0 then
+                        bodyVelocity.Velocity = direction.Unit * flySpeed
+                    else
+                        bodyVelocity.Velocity = Vector3.new(0,0,0)
+                    end
+                    task.wait()
+                end
+            end)
+        else
+            if bodyVelocity then
+                bodyVelocity:Destroy()
+                bodyVelocity = nil
+            end
+        end
+    end
+})
+
+-- ---------- FLY SPEED ----------
+LocalPlayerTab:CreateSlider({
+    Name = "Fly Speed",
+    Range = {1,100},
+    Increment = 1,
+    CurrentValue = 50,
+    Flag = "flyspeed",
+    Callback = function(value)
+        flySpeed = value
+    end
+})
+
+-- ---------- INSTANT PROXIMITY PROMPT ----------
+LocalPlayerTab:CreateToggle({
+    Name = "Instant Proximity Prompt",
+    CurrentValue = false,
+    Flag = "instantproximity",
+    Callback = function(value)
+        instantProximity = value
+        for _, prompt in pairs(workspace:GetDescendants()) do
+            if prompt:IsA("ProximityPrompt") then
+                prompt.HoldDuration = instantProximity and 0 or 0.5
+            end
+        end
+        workspace.DescendantAdded:Connect(function(obj)
+            if obj:IsA("ProximityPrompt") then
+                obj.HoldDuration = instantProximity and 0 or 0.5
+            end
+        end)
+    end
+})
+
+-- ---------- RESETAR PERSONAGEM ----------
+LocalPlayerTab:CreateButton({
+    Name = "Resetar Personagem",
+    Callback = function()
+        plr.Character:BreakJoints()
+    end
+})
+
+-- ---------- NOCLIP ----------
+LocalPlayerTab:CreateToggle({
+    Name = "Noclip",
+    CurrentValue = false,
+    Flag = "noclip",
+    Callback = function(value)
+        noclip = value
+        spawn(function()
+            while noclip do
+                if plr.Character then
+                    for _, part in pairs(plr.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+                task.wait()
+            end
+        end)
+    end
+})
+
+-- ---------- TELEPORT TOOL (TOGGLE) ----------
+LocalPlayerTab:CreateToggle({
+    Name = "Teleport Tool",
+    CurrentValue = false,
+    Flag = "teleporttool",
+    Callback = function(value)
+        if value then
+            teleportTool = Instance.new("Tool")
+            teleportTool.RequiresHandle = false
+            teleportTool.Name = "TP Tool"
+            teleportTool.Activated:Connect(function()
+                local mouse = plr:GetMouse()
+                if mouse.Hit then
+                    plr.Character:MoveTo(mouse.Hit.p + Vector3.new(0,3,0))
+                end
+            end)
+            teleportTool.Parent = plr.Backpack
+        else
+            if teleportTool and teleportTool.Parent then
+                teleportTool:Destroy()
+            end
+            teleportTool = nil
+        end
+    end
+})
+
+-- ---------- INF JUMP ----------
+LocalPlayerTab:CreateToggle({
+    Name = "Inf Jump",
+    CurrentValue = false,
+    Flag = "infjump",
+    Callback = function(value)
+        infJump = value
+        local UIS = game:GetService("UserInputService")
+        if value then
+            UIS.JumpRequest:Connect(function()
+                if infJump and plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") then
+                    plr.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+                end
+            end)
+        end
+    end
+})
+
+-- ===================== ABA MISC =====================
+local MiscTab = Window:CreateTab("Misc")
+
+local espEnabled = false
+local espConnections = {}
+local aimlockEnabled = false
+local aimlockTarget = nil
+
+-- ---------- REMOVER LAG ----------
+MiscTab:CreateButton({
+    Name = "Remover Lag (Baixar Gráficos)",
+    Callback = function()
+        sethiddenproperty(game:GetService("Lighting"), "Technology", Enum.Technology.Compatibility)
+        game:GetService("Lighting").GlobalShadows = false
+        game:GetService("Lighting").FogEnd = 9e9
+
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.Material = Enum.Material.Plastic
+                v.Reflectance = 0
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                v.Transparency = 1
+            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                v.Lifetime = NumberRange.new(0)
+            end
+        end
+
+        for _, v in pairs(game:GetService("Lighting"):GetChildren()) do
+            if v:IsA("BloomEffect") or v:IsA("SunRaysEffect") or v:IsA("BlurEffect") or v:IsA("ColorCorrectionEffect") then
+                v.Enabled = false
+            end
+        end
+    end
+})
+
+-- ---------- ESP ----------
+MiscTab:CreateToggle({
+    Name = "ESP Players",
+    CurrentValue = false,
+    Flag = "esp",
+    Callback = function(value)
+        espEnabled = value
+        for _, conn in pairs(espConnections) do conn:Disconnect() end
+        espConnections = {}
+
+        for _, p in pairs(game.Players:GetPlayers()) do
+            if p ~= plr then
+                local function applyESP(char)
+                    if not espEnabled or not char then return end
+                    if char:FindFirstChild("Highlight") then return end
+                    local hl = Instance.new("Highlight")
+                    hl.Name = "Highlight"
+                    hl.FillTransparency = 0.5
+                    hl.OutlineTransparency = 0
+                    hl.FillColor = Color3.fromRGB(0,255,0)
+                    hl.OutlineColor = Color3.fromRGB(255,255,255)
+                    hl.Parent = char
+                end
+                applyESP(p.Character)
+                table.insert(espConnections, p.CharacterAdded:Connect(function(char)
+                    task.wait(1)
+                    applyESP(char)
+                end))
+            end
+        end
+    end
+})
+
+-- ---------- AIMLOCK FUNCIONAL (CÂMERA) ----------
+MiscTab:CreateToggle({
+    Name = "Aimlock",
+    CurrentValue = false,
+    Flag = "aimlock",
+    Callback = function(value)
+        aimlockEnabled = value
+        local RunService = game:GetService("RunService")
+        local camera = workspace.CurrentCamera
+
+        local aimConnection
+        if aimlockEnabled then
+            aimConnection = RunService.RenderStepped:Connect(function()
+                if not aimlockEnabled then
+                    aimConnection:Disconnect()
+                    return
+                end
+
+                -- Seleciona o jogador mais próximo
+                local closestDist = math.huge
+                local closestPlayer = nil
+                for _, p in pairs(game.Players:GetPlayers()) do
+                    if p ~= plr and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                        local humanoid = p.Character:FindFirstChildOfClass("Humanoid")
+                        if humanoid and humanoid.Health > 0 then
+                            local dist = (camera.CFrame.Position - p.Character.HumanoidRootPart.Position).Magnitude
+                            if dist < closestDist then
+                                closestDist = dist
+                                closestPlayer = p
+                            end
+                        end
+                    end
+                end
+
+                aimlockTarget = closestPlayer
+                if aimlockTarget and aimlockTarget.Character and aimlockTarget.Character:FindFirstChild("HumanoidRootPart") then
+                    local targetPos = aimlockTarget.Character.HumanoidRootPart.Position
+                    camera.CFrame = CFrame.new(camera.CFrame.Position, targetPos)
+                end
+            end)
+        end
+    end
+})
